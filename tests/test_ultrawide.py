@@ -33,6 +33,32 @@ class UltrawideTest(unittest.TestCase):
             self.assertEqual(hud, 2560)
             self.assertEqual(dict(ours), dict(ref), name)
 
+    def test_final_writes_keep_21_9_values(self):
+        # Last write wins when patches apply. The 16:9 resolution template also writes the aspect
+        # float and the HUD canvas widths; the final result must still be the 21:9 patch.
+        writes, size, ui = patches.display_writes(XML, None, (3440, 1440), '01.09', SEGMENTS)
+        final = dict(writes)
+        self.assertEqual((size, ui), ((3440, 1440), (2560, 1080)))
+        value, = struct.unpack('<f', final[patches.ASPECT_FLOAT])
+        self.assertAlmostEqual(value, 3440 / 1440, places=5)
+        ui_sites = {patches.UI_WIDTH, patches.UI_HEIGHT}  # the port keeps the UI at the HUD canvas
+        ref = patches.compile_patches(XML, ['Resolution Patch 3440x1440 (21:9)'], '01.09', SEGMENTS)
+        for offset, data in ref:
+            if offset not in ui_sites:
+                self.assertEqual(final.get(offset), data, hex(offset + patches.EBOOT_BASE))
+        # The heap patch is appended afterwards; where it overlaps the 21:9 patch (the graphics
+        # heap sizes the 21:9 patch also raises) it must write the same bytes.
+        heap = patches.compile_patches(XML, ['Increased Graphics Heap Sizes'], '01.09', SEGMENTS)
+        ref_map = dict(ref)
+        for offset, data in heap:
+            if offset in ref_map:
+                self.assertEqual(data, ref_map[offset], hex(offset + patches.EBOOT_BASE))
+
+    def test_16_9_unchanged(self):
+        writes, size, ui = patches.display_writes(XML, (2560, 1440), (2560, 1440), '01.09', SEGMENTS)
+        self.assertEqual(ui, (1920, 1080))
+        self.assertEqual(writes, patches.resolution_writes(XML, (2560, 1440), '01.09', SEGMENTS))
+
     def test_aspect_float(self):
         ours, _ = patches.aspect_writes(XML, (3440, 1440), '01.09', SEGMENTS)
         value, = struct.unpack('<f', dict(ours)[patches.ASPECT_FLOAT])

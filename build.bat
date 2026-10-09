@@ -57,6 +57,15 @@ if not exist "gpu\third_party\fsr-vulkan\CMakeLists.txt" (
     )
 )
 
+if not exist "third_party\win-deps\include\magic_enum\magic_enum.hpp" (
+    echo [ERROR] Windows dependencies are missing. Run once from PowerShell:
+    echo         powershell -ExecutionPolicy Bypass -File setup-windows.ps1
+    exit /b 1
+)
+
+rem An empty archive (8 bytes) from an earlier failed build: rebuild it.
+if exist "out\libatrac9.a" for %%A in ("out\libatrac9.a") do if %%~zA LSS 1024 del /f /q "out\libatrac9.a"
+
 if not exist "out\libatrac9.a" (
     echo Building LibAtrac9
     if not exist "out\atrac9" mkdir out\atrac9
@@ -69,9 +78,10 @@ if not exist "out\libatrac9.a" (
     )
     pushd out\atrac9
     del /f /q ..\libatrac9.a 2>nul
-    set "OBJS="
-    for %%o in (*.o) do call set "OBJS=%%OBJS%% %%o"
-    ar rcs ..\libatrac9.a %OBJS%
+    rem One object per call: a list built in this block (%OBJS%) expands before the loop fills
+    rem it (no delayed expansion), and ar does not expand *.o itself; either way the archive came
+    rem out empty and the final link failed with undefined Atrac9* symbols.
+    for %%o in (*.o) do ar rcs ..\libatrac9.a %%o
     popd
     if errorlevel 1 (
         echo Failed to create out\libatrac9.a

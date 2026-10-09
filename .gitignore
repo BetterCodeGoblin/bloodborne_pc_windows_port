@@ -32,3 +32,6 @@ test_th.*
 .vscode/
 .idea/
 push_to_github.bat
+
+# Fetched by setup-windows.ps1
+third_party/win-deps/

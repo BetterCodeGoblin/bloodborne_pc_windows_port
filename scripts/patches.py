@@ -210,6 +210,23 @@ def aspect_writes(xml,output,app_version,segments):
     return out,hud
 
 
+def display_writes(xml,size,output,app_version,segments):
+    """(writes, scene size, UI size) for a scene size and output size (either may be None).
+    Wider than 16:9: the aspect/HUD writes go after resolution_writes, whose 16:9 template also
+    writes the aspect float (16:9) and the HUD canvas widths (1920); patches apply in order, so
+    the wide values must come last to win."""
+    ui=OUTPUT_SIZE
+    wide=[]
+    if output and wide_output(output):
+        # The UI canvas widens with the HUD (the port scales it uniformly by output height / 1080).
+        wide,hud=aspect_writes(xml,output,app_version,segments)
+        ui=(hud,OUTPUT_SIZE[1])
+        size=size or output
+    if not size:
+        return [],size,ui
+    return resolution_writes(xml,size,app_version,segments,ui)+wide,size,ui
+
+
 def eboot_segments(elf):
     phoff,=struct.unpack_from('<Q',elf,0x20)
     phentsize,phnum=struct.unpack_from('<HH',elf,0x36)
@@ -354,17 +371,12 @@ def main():
     # The UI keeps the game's 1920x1080 coordinates even for a larger output: the port draws
     # it into the output-size image with a viewport scaled by output / 1920
     # (UiComposition::NativeViewport), so it is rasterized at the output resolution.
-    ui=OUTPUT_SIZE
     output=tuple(int(v) for v in a.output_res.lower().split('x')) if a.output_res else None
+    display,size,ui=display_writes(a.xml,size,output,a.app_version,segments)
     if output and wide_output(output):
-        # The UI canvas widens with the HUD (the port scales it uniformly by output height / 1080).
-        wide,hud=aspect_writes(a.xml,output,a.app_version,segments)
-        writes+=wide
-        ui=(hud,OUTPUT_SIZE[1])
-        size=size or output
-        print(f'Patches: aspect {output[0]}:{output[1]}; HUD canvas {hud}x{OUTPUT_SIZE[1]}')
+        print(f'Patches: aspect {output[0]}:{output[1]}; HUD canvas {ui[0]}x{ui[1]}')
+    writes+=display
     if size:
-        writes+=resolution_writes(a.xml,size,a.app_version,segments,ui)
         if size[0]*size[1]>OUTPUT_SIZE[0]*OUTPUT_SIZE[1]:
             heap='Increased Graphics Heap Sizes'
             writes+=compile_patches(a.xml,[heap],a.app_version,segments)

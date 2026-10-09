@@ -17,7 +17,15 @@ add_compile_options(-fno-omit-frame-pointer)
 # (BB_PGO: off, generate = instrumented build writing into BB_PGO_DIR, use = build with that
 # profile). Covers bbgpu and the static libraries linked into it. No -march: the same build
 # runs on the Steam Deck.
-option(BB_LTO "Link-time optimization of bbgpu" ON)
+# Off by default on Windows: MSYS2's GCC 16 LTO discards functions referenced only from inline
+# asm (pre_import_hook, post_import_hook, restore_guest_fs, runtime_thread_get_tcb) and the
+# bbport.exe link fails with "defined in discarded section".
+if (WIN32)
+    set(bb_lto_default OFF)
+else()
+    set(bb_lto_default ON)
+endif()
+option(BB_LTO "Link-time optimization of bbgpu" ${bb_lto_default})
 set(BB_PGO "off" CACHE STRING "Profile-guided optimization: off, generate, use")
 set(BB_PGO_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../pgo" CACHE PATH "Profile directory")
 if (BB_LTO)
@@ -54,7 +62,15 @@ if (WIN32)
     if (DEFINED ENV{VULKAN_SDK})
         list(APPEND CMAKE_PREFIX_PATH "$ENV{VULKAN_SDK}")
     endif()
-    add_compile_definitions(WIN32_LEAN_AND_MEAN NOMINMAX)
+    # Windows 10+ APIs (SetProcessInformation...): MSYS2's MinGW defaults to 0x0601 (Windows 7).
+    add_compile_definitions(WIN32_LEAN_AND_MEAN NOMINMAX _WIN32_WINNT=0x0A00 WINVER=0x0A00)
+    # Header-only/static dependencies MSYS2 does not package (magic_enum, miniz, xbyak), fetched
+    # into third_party/win-deps by setup-windows.ps1.
+    set(BB_WIN_DEPS "${CMAKE_CURRENT_SOURCE_DIR}/../third_party/win-deps")
+    if (EXISTS "${BB_WIN_DEPS}/include")
+        list(APPEND CMAKE_PREFIX_PATH "${BB_WIN_DEPS}")
+        include_directories(SYSTEM "${BB_WIN_DEPS}/include")
+    endif()
     if (EXISTS "C:/msys64/mingw64/lib")
         link_directories("C:/msys64/mingw64/lib")
     endif()
@@ -77,7 +93,9 @@ endif()
 find_package(tsl-robin-map REQUIRED)
 if (NOT TARGET GPUOpen::VulkanMemoryAllocator)
     add_library(GPUOpen::VulkanMemoryAllocator INTERFACE IMPORTED)
-    find_path(VMA_INC NAMES vk_mem_alloc.h PATHS "$ENV{MINGW_PREFIX}/include" "C:/msys64/mingw64/include")
+    # MSYS2's vulkan-memory-allocator installs include/vma/vk_mem_alloc.h.
+    find_path(VMA_INC NAMES vk_mem_alloc.h PATHS "$ENV{MINGW_PREFIX}/include" "C:/msys64/mingw64/include"
+              PATH_SUFFIXES "" vma)
     if (VMA_INC)
         target_include_directories(GPUOpen::VulkanMemoryAllocator INTERFACE "${VMA_INC}")
     endif()

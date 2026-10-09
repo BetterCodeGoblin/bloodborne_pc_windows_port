@@ -14,6 +14,7 @@ if "%PYTHON%"=="" (
         "%LocalAppData%\Programs\Python\Python312\python.exe"
         "%LocalAppData%\Programs\Python\Python311\python.exe"
         "%LocalAppData%\Programs\Python\Python310\python.exe"
+        "C:\msys64\mingw64\bin\python.exe"
     ) do (
         if not defined PYTHON if exist %%P set "PYTHON=%%~P"
     )

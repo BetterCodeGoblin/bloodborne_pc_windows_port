@@ -13,6 +13,34 @@ The game's x86-64 code executes natively on your CPU without general emulation. 
 
 ---
 
+## Quick Start on a New Windows PC (this fork)
+
+1. Install [Git for Windows](https://git-scm.com/download/win), then clone near a drive root (deep paths hit MAX_PATH):
+   ```cmd
+   git clone --recursive <this repository's URL> C:\bbport
+   cd C:\bbport
+   ```
+2. One-time setup (no admin; installs MSYS2 to `C:\msys64` if missing, its MinGW64 packages, submodules, and the pinned, checksum-verified `magic_enum`/`miniz`/`xbyak` into `third_party\win-deps`):
+   ```cmd
+   powershell -ExecutionPolicy Bypass -File setup-windows.ps1
+   ```
+3. Build: `build.bat` (single-threaded; the first build takes a while).
+4. Play: `launch_gui.bat`, select your own dump's `CUSA03173\eboot.bin` (v1.09). Leave **FPS = 120** and **Resolution = Default**.
+5. Output resolution: create `bbport.ini` next to `run.bat`, for example:
+   ```ini
+   # 2560x1440, 3840x2160, or 21:9: 2560x1080, 3440x1440 (comments only on their own lines)
+   output_res=3440x1440
+   # 0 = native; 1-4 = FSR upscale ratios 1.5 / 1.7 / 2 / 3
+   preset=0
+   ```
+
+Notes for this fork:
+- **120 FPS preset** (default): the uncap patches paced by a 120 Hz vblank. The `uncap` preset's 480 Hz flips bunch into ~14/2 ms pairs when Mailbox presentation is unavailable (AMD on Windows falls back to Fifo): 120 on the counter but judder on screen. Measured: frame time 8.3 ms with 0.5 ms spread (was 7.7 ms spread, 20+ ms worst frames).
+- **21:9 output** (2560x1080, 3440x1440): aspect-correct scene and the community patch's HUD coordinates; the HUD stays in the centered 16:9 area. Lock-on marker alignment at 21:9 has not been verified yet.
+- Keep the launcher's **Tracing** and **Watchdog** off for play: they are debug options and cost a lot of frame time.
+
+---
+
 ## Windows Port Changes
 
 This repository adapts the original Linux codebase specifically for Windows systems:
