@@ -20,7 +20,7 @@ SETTINGS_FILE = APP_DIR / "launcher_settings.json"
 PATCHES_XML = APP_DIR / "patches" / "Bloodborne.xml"
 DEFAULT_GAME = Path(os.environ.get("BB_GAME_DIR", "../CUSA03173"))
 
-FPS_CHOICES = ["uncap", "60", "90", "30"]
+FPS_CHOICES = ["120", "uncap", "60", "90", "30"]
 RES_CHOICES = ["Default (1080p)", "1280x720", "1920x1080", "2560x1440", "3840x2160"]
 TIMEOUT_CHOICES = ["0 (no limit)", "10", "30", "60", "120", "300", "600"]
 ANISO_CHOICES = [
@@ -227,7 +227,7 @@ class BloodborneLauncher(tk.Tk):
         ttk.Label(opts, text="Performance & Render Options:", style="Card.TLabel",
                   font=("Segoe UI", 10, "bold")).grid(row=0, column=0, columnspan=4, sticky="w", pady=(0, 8))
 
-        fps = self.settings.get("fps", "uncap")
+        fps = self.settings.get("fps", "120")
         res = self.settings.get("res", RES_CHOICES[0])
         timeout_val = str(self.settings.get("timeout", "0"))
         if timeout_val not in [c.split()[0] for c in TIMEOUT_CHOICES]:
@@ -239,7 +239,7 @@ class BloodborneLauncher(tk.Tk):
         if aniso not in [c[0] for c in ANISO_CHOICES]:
             aniso = "16x"
 
-        self.fps_var = tk.StringVar(value=fps if fps in FPS_CHOICES else "uncap")
+        self.fps_var = tk.StringVar(value=fps if fps in FPS_CHOICES else "120")
         self.res_var = tk.StringVar(value=res if res in RES_CHOICES else RES_CHOICES[0])
         self.timeout_var = tk.StringVar(value=matching_choice)
         self.aniso_var = tk.StringVar(value=aniso)
@@ -414,10 +414,10 @@ class BloodborneLauncher(tk.Tk):
         self.feat_fps_patch.set(True)
         self.feat_mods.set(True)
         self.feat_res_scaling.set(True)
-        self.feat_tracing.set(True)
-        self.feat_watchdog.set(True)
+        self.feat_tracing.set(False)  # debug: logs every import call, costs ~2x frame time
+        self.feat_watchdog.set(False)  # debug: per-second hang snapshots
         self.feat_draw_prep.set(True)
-        self.fps_var.set("uncap")
+        self.fps_var.set("120")
         self.aniso_var.set("16x")
         self.enabled_patches = {"Skip Intro", "Performance Patch (perf increase)", "Disable Motion Blur (perf increase)"}
         self.sync_quick_patch_vars()

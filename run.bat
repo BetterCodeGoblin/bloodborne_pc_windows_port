@@ -102,8 +102,13 @@ if "%BB_AUTO_RENDER_RES%"=="1" (
     set "BB_AUTO_RENDER_RES="
 )
 
-if "%BB_FPS%"=="" set "BB_FPS=uncap"
+REM 120: the uncap patches paced by a 120 Hz vblank. With "uncap" (480 Hz vblank + frame limit)
+REM flips bunch into ~14/2 ms pairs on displays without Mailbox (AMD/Windows falls back to Fifo):
+REM 120 FPS on the counter, judder on screen. A 120 Hz vblank gives an even 8.3 ms cadence.
+if "%BB_FPS%"=="" set "BB_FPS=120"
 set "fps=%BB_FPS%"
+set "patch_fps=%fps%"
+if "%fps%"=="120" set "patch_fps=uncap"
 
 set "scaled_render="
 set "scaled_output="
@@ -151,12 +156,14 @@ if "%patches_dir%"=="" set "patches_dir=%BB_DATA_DIR%\patches"
 set "patches_config=%BB_PATCHES_CONFIG%"
 if "%patches_config%"=="" set "patches_config=%BB_DATA_DIR%\patches.json"
 
-"%PYTHON%" scripts\patches.py --out "%out%" --fps "%fps%" --extra "%BB_PATCHES%" --settings "%BB_CONFIG%" --game-dir "%game%" --render-res "%BB_RENDER_RES%" --output-res "%BB_OUTPUT_RES%" --patches-dir "%patches_dir%" --patches-config "%patches_config%"
+"%PYTHON%" scripts\patches.py --out "%out%" --fps "%patch_fps%" --extra "%BB_PATCHES%" --settings "%BB_CONFIG%" --game-dir "%game%" --render-res "%BB_RENDER_RES%" --output-res "%BB_OUTPUT_RES%" --patches-dir "%patches_dir%" --patches-config "%patches_config%"
 if errorlevel 1 exit /b 1
 
 if "%BB_VBLANK_HZ%"=="" (
     if "%fps%"=="uncap" (
         set "BB_VBLANK_HZ=0"
+    ) else if "%fps%"=="120" (
+        set "BB_VBLANK_HZ=120"
     ) else if "%fps%"=="90" (
         set "BB_VBLANK_HZ=90"
     ) else (
