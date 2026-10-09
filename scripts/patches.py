@@ -26,6 +26,13 @@ PRESET_SCALES=[1.0,1.5,1.7,2.0,3.0]
 # and the UI movie viewport. Keep the latter at native size so glyph rasterisation and
 # vector tessellation do not inherit the scene's FSR resolution.
 RESOLUTION_TEMPLATE='Resolution Patch 1280x720 (16:9)'
+# Outputs wider than 16:9 (21:9, 32:9): the community 21:9 patch, generalized. Beyond the
+# scene/UI sizes (resolution_writes) it sets the projection aspect, widens the HUD canvas to
+# HUD_WIDTH x 1080 (anchors, lock-on and hp-bar coordinates) and scales the HUD by 1920/width.
+WIDE_TEMPLATE='Resolution Patch 2560x1080 (21:9)'
+ASPECT_FLOAT=0x0183A35D-EBOOT_BASE
+HUD_WIDTH_FLOAT=0x04D26EA4-EBOOT_BASE
+HUD_SCALES=tuple(a-EBOOT_BASE for a in (0x04CF9A10,0x04CF9A70,0x04CF9AE0))
 # Effect switches (bbport.ini, in-game menu, launcher): key -> (patch when the key is 0, patch
 # when it is 1). The game reads these at start; a change applies after a restart.
 EFFECTS={
@@ -169,6 +176,38 @@ def resolution_writes(xml,size,app_version,segments,ui=OUTPUT_SIZE):
     if seen!=replacements.keys():
         raise ValueError('resolution patch is missing scene/UI viewport instructions')
     return out
+
+
+def hud_width(output):
+    """HUD canvas width at the game's 1080 lines: 1920 at 16:9, 2560 at 21:9 (2560x1080 and
+    3440x1440), 3840 at 32:9; multiples of 64 as in the community patches."""
+    w,h=output
+    return max(1920,round(1080*w/h/64)*64)
+
+
+def wide_output(output):
+    w,h=output
+    return w*9>h*16
+
+
+def aspect_writes(xml,output,app_version,segments):
+    """Aspect, HUD canvas and HUD scale writes for an output wider than 16:9 (the scene/UI
+    viewport sizes stay with resolution_writes)."""
+    hud=hud_width(output)
+    sizes={SCENE_WIDTH,SCENE_HEIGHT,UI_WIDTH,UI_HEIGHT}
+    out=[]
+    for offset,data in compile_patches(xml,[WIDE_TEMPLATE],app_version,segments):
+        if offset in sizes: continue
+        if offset==ASPECT_FLOAT:
+            data=struct.pack('<f',output[0]/output[1])
+        elif offset==HUD_WIDTH_FLOAT:
+            data=struct.pack('<f',float(hud))
+        elif offset in HUD_SCALES:
+            data=struct.pack('<f',0.5*1920/hud)
+        elif len(data)==4 and data[0] in (0xB8,0xBE) and data[1:]==(0xA00).to_bytes(3,'little'):
+            data=bytes([data[0]])+hud.to_bytes(3,'little')  # mov eax/esi, HUD canvas width
+        out.append((offset,data))
+    return out,hud
 
 
 def eboot_segments(elf):
@@ -316,6 +355,14 @@ def main():
     # it into the output-size image with a viewport scaled by output / 1920
     # (UiComposition::NativeViewport), so it is rasterized at the output resolution.
     ui=OUTPUT_SIZE
+    output=tuple(int(v) for v in a.output_res.lower().split('x')) if a.output_res else None
+    if output and wide_output(output):
+        # The UI canvas widens with the HUD (the port scales it uniformly by output height / 1080).
+        wide,hud=aspect_writes(a.xml,output,a.app_version,segments)
+        writes+=wide
+        ui=(hud,OUTPUT_SIZE[1])
+        size=size or output
+        print(f'Patches: aspect {output[0]}:{output[1]}; HUD canvas {hud}x{OUTPUT_SIZE[1]}')
     if size:
         writes+=resolution_writes(a.xml,size,a.app_version,segments,ui)
         if size[0]*size[1]>OUTPUT_SIZE[0]*OUTPUT_SIZE[1]:

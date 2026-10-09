@@ -113,7 +113,7 @@ if "%fps%"=="120" set "patch_fps=uncap"
 set "scaled_render="
 set "scaled_output="
 if "%BB_RENDER_RES%"=="" (
-    for /f "tokens=1,2" %%a in ('"%PYTHON%" scripts\patches.py --print-scaled --settings "%BB_CONFIG%" 2^>nul') do (
+    for /f "tokens=1,2" %%a in ('call "%PYTHON%" scripts\patches.py --print-scaled --settings "%BB_CONFIG%" 2^>nul') do (
         set "scaled_render=%%a"
         set "scaled_output=%%b"
     )
@@ -129,10 +129,16 @@ if not "%scaled_output%"=="" (
     )
     if "%live%"=="auto" (
         set "caps=out\bb-gpu-capabilities.exe"
-        for /f "delims=" %%c in ('"%caps%" --live-resolution 2^>nul') do set "live=%%c"
+        for /f "delims=" %%c in ('call "%caps%" --live-resolution 2^>nul') do set "live=%%c"
     )
     if not "%live%"=="1" set "live=0"
 )
+
+REM Outputs above 2560x1440 (3440x1440 ultrawide, 4K): the community resolution patches ask
+REM for about 4 GB more direct memory than 1440p.
+set "output_pixels=0"
+if not "%scaled_output%"=="" for /f "tokens=1,2 delims=xX" %%a in ("%scaled_output%") do set /a "output_pixels=%%a*%%b" >nul 2>nul
+if %output_pixels% GTR 3686400 if not defined BB_DMEM_MB set "BB_DMEM_MB=13248"
 
 if "%live%"=="1" (
     echo Output %scaled_output%: live resolution changes ^(live_resolution=0: startup patch^)

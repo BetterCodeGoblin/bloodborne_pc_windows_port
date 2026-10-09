@@ -39,9 +39,10 @@ inline constexpr Effect Effects[] = {
 };
 inline constexpr int EffectCount = int(sizeof(Effects) / sizeof(Effects[0]));
 /// Live output resolutions: the upscaler's output and the UI host targets.
-inline constexpr int OutputWidths[] = {1280, 1920, 2560, 3840};
-inline constexpr int OutputHeights[] = {720, 1080, 1440, 2160};
-inline constexpr int OutputCount = 4;
+/// The last two are wider than 16:9 (21:9): their aspect/HUD patches apply at game start.
+inline constexpr int OutputWidths[] = {1280, 1920, 2560, 3840, 2560, 3440};
+inline constexpr int OutputHeights[] = {720, 1080, 1440, 2160, 1080, 1440};
+inline constexpr int OutputCount = 6;
 inline constexpr int OutputDefault = 1; ///< 1920x1080, the game's own size
 
 struct Values {
