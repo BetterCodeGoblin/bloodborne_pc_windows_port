@@ -17,7 +17,7 @@ The game's x86-64 code executes natively on your CPU without general emulation. 
 
 1. Install [Git for Windows](https://git-scm.com/download/win), then clone near a drive root (deep paths hit MAX_PATH):
    ```cmd
-   git clone --recursive <this repository's URL> C:\bbport
+   git clone --recursive https://github.com/BetterCodeGoblin/bloodborne_pc_windows_port.git C:\bbport
    cd C:\bbport
    ```
 2. One-time setup (no admin; installs MSYS2 to `C:\msys64` if missing, its MinGW64 packages, submodules, and the pinned, checksum-verified `magic_enum`/`miniz`/`xbyak` into `third_party\win-deps`):
